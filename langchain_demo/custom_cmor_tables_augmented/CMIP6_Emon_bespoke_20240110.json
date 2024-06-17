@@ -1,0 +1,56 @@
+{
+    "Header": {
+        "data_specs_version": "01.00.33", 
+        "cmor_version": "3.5", 
+        "table_id": "Table Emon", 
+        "realm": "land", 
+        "table_date": "18 November 2020", 
+        "missing_value": "1e20", 
+        "int_missing_value": "-999", 
+        "product": "model-output", 
+        "approx_interval": "30.00000", 
+        "generic_levels": "alevel olevel", 
+        "mip_era": "CMIP6", 
+        "Conventions": "CF-1.7 CMIP-6.2"
+    }, 
+    "variable_entry": {
+        "rls": {
+            "frequency": "mon", 
+            "modeling_realm": "atmos", 
+            "standard_name": "surface_net_downward_longwave_flux", 
+            "units": "W m-2", 
+            "cell_methods": "area: time: mean", 
+            "cell_measures": "area: areacella", 
+            "long_name": "Net Longwave Surface Radiation", 
+            "comment": "Net longwave surface radiation", 
+            "augmented_comment": "represents the difference between the upward long-wave radiation emitted from the surface and the downward long-wave radiation from the atmosphere",
+            "dimensions": "longitude latitude time", 
+            "out_name": "rls", 
+            "type": "real", 
+            "positive": "down", 
+            "valid_min": "", 
+            "valid_max": "", 
+            "ok_min_mean_abs": "", 
+            "ok_max_mean_abs": ""
+        }, 
+        "rss": {
+            "frequency": "mon", 
+            "modeling_realm": "atmos", 
+            "standard_name": "surface_net_downward_shortwave_flux", 
+            "units": "W m-2", 
+            "cell_methods": "area: time: mean", 
+            "cell_measures": "area: areacella", 
+            "long_name": "Net Shortwave Surface Radiation", 
+            "comment": "Net downward shortwave radiation at the surface", 
+            "augmented_comment": "surface net short wave radiation is the difference between the incoming and outgoing SW radiation. It represents the amount of solar radiation absorbed by the surface",
+            "dimensions": "longitude latitude time", 
+            "out_name": "rss", 
+            "type": "real", 
+            "positive": "down", 
+            "valid_min": "", 
+            "valid_max": "", 
+            "ok_min_mean_abs": "", 
+            "ok_max_mean_abs": ""
+        },
+    }
+}
