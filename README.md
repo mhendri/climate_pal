@@ -9,7 +9,7 @@ Climate PAL - Climate Analysis and Projection Language Model
 
 ## Langchain Demo
 
-``` conda create -n langchain_env python=3.11.7```  
+```conda create -n langchain_env python=3.11.7```  
 ```conda install openai```  
 ```pip install chromadb gradio```  
 ```conda install langchain -c conda-forge```  
