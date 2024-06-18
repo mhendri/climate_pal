@@ -16,6 +16,11 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_retrieval_chain, create_history_aware_retriever
 from langchain.chains.combine_documents import create_stuff_documents_chain
 
+if not os.environ.get("OPENAI_API_KEY"):
+    import key
+    key.init()
+    assert os.environ.get('OPENAI_API_KEY')
+
 docs = [
     Document(
         page_content="Mole_fraction_of_methane_in_air calculates the ratio of the number of moles of methane to the total number of moles of all gases present in the air. This measurement is particularly important in environmental science and atmospheric studies, as it provides a precise way to determine the concentration of methane, a significant greenhouse gas, in the Earth's atmosphere. Understanding the mole fraction of methane in air is crucial for assessing its impact on climate change and air quality.",
@@ -211,9 +216,7 @@ docs = [
 
 vectorstore = Chroma.from_documents(
     docs,
-    OpenAIEmbeddings(
-        openai_api_key="" # add an OpenAI API Key
-    ),
+    OpenAIEmbeddings(),
 )
 
 
@@ -247,7 +250,7 @@ metadata_field_info = [
 
 document_content_description = "climate diagnostic variables"
 llm = ChatOpenAI(
-    temperature=0, openai_api_key="" # Add an OpenAI API Key
+    temperature=0, 
 )
 # based on conversational RAG tutorial https://python.langchain.com/v0.2/docs/tutorials/qa_chat_history
 retriever = vectorstore.as_retriever()
