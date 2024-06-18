@@ -5,14 +5,16 @@ import os
 import json
 
 from langchain.chains.query_constructor.base import AttributeInfo
-from langchain.retrievers.self_query.base import SelfQueryRetriever
-from langchain.chains import RetrievalQA
+# from langchain.retrievers.self_query.base import SelfQueryRetriever
+# from langchain.chains import RetrievalQA
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
-
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain.chains import create_retrieval_chain, create_history_aware_retriever
+from langchain.chains.combine_documents import create_stuff_documents_chain
 
 docs = [
     Document(
@@ -247,47 +249,67 @@ document_content_description = "climate diagnostic variables"
 llm = ChatOpenAI(
     temperature=0, openai_api_key="" # Add an OpenAI API Key
 )
+# based on conversational RAG tutorial https://python.langchain.com/v0.2/docs/tutorials/qa_chat_history
+retriever = vectorstore.as_retriever()
+system_prompt = ("You are a NASA climate scientist. Answer this climate science student's questions.\n\n{context}")
+prompt = ChatPromptTemplate.from_messages(
+    [
+        ('system', system_prompt),
+        ('human', '{input}')
+    ]
+)
+doc_chain = create_stuff_documents_chain(llm, prompt) #gives prompt to LLM
+qa_chain = create_retrieval_chain(retriever, doc_chain) #gives documents to prompt
 
-self_query_retriever = SelfQueryRetriever.from_llm(
-    llm,
-    vectorstore,
-    document_content_description,
-    metadata_field_info,
-    enable_limit=True,
+contextualize_q_system_prompt = (
+    "Given a chat history and the latest user question "
+    "which might reference context in the chat history, "
+    "formulate a standalone question which can be understood "
+    "without the chat history. Do NOT answer the question, "
+    "just reformulate it if needed and otherwise return it as is."
 )
 
-qa_chain = RetrievalQA.from_chain_type(
-    llm,
-    chain_type="stuff",
-    retriever=self_query_retriever,
-    return_source_documents=True,
+contextualize_q_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+# this processes chat history on call into standalone query:
+history_aware_retriever = create_history_aware_retriever( 
+    llm, retriever, contextualize_q_prompt
 )
 
+qa_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+# connects standalone prompt to answer with docs etc
+question_answer_chain = create_stuff_documents_chain(llm, qa_prompt) 
+# connects history->standalone with standalone->answer
+rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain) 
 
 def predict(message, history):
-    # Convert the history to Langchain format
     history_langchain_format = []
     for human, ai in history:
         history_langchain_format.append(HumanMessage(content=human))
         history_langchain_format.append(AIMessage(content=ai))
-    
-    # Append the new user message to the history
-    history_langchain_format.append(HumanMessage(content=message))
-    
-    # Generate a context-aware query
-    context = "\n".join([msg.content for msg in history_langchain_format])
-    
-    # Get the LLM response
-    llm_response = qa_chain({"query": context})
-    answer = llm_response['result']
-    source_docs = llm_response['source_documents']
+
+    ai_message = rag_chain.invoke({'input': message, 'chat_history': history_langchain_format})
+    print(ai_message)
+
+    source_docs = ai_message['context']
     sources = "\n".join([doc.page_content for doc in source_docs])
-    
-    # Update the history with the new message and response
-    response_text = f"Answer: {answer}\n\nSources:\n{sources}"
-    history.append((message, response_text))
-    
-    return history, history
+    response_text = f"Answer: {ai_message['answer']}\n\nSources:\n{sources}"
+    history.append(
+        (message, response_text)
+    )
+
+    return [history, history]
 
 # Create the Gradio interface with streaming
 def chat_interface_streaming():
@@ -312,4 +334,4 @@ chat_interface_streaming()
 
 # Alternatively, invoke retriever with one off query
 # print(retriever.invoke("What's one variable about snow with frequency mon"))
-print(self_query_retriever.invoke("I am interested in air temperature"))
+# print(self_query_retriever.invoke("I am interested in air temperature"))
