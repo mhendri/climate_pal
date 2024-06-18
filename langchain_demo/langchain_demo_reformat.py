@@ -296,38 +296,41 @@ question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
 # connects history->standalone with standalone->answer
 rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain) 
 
-def predict(message, history):
-    history_langchain_format = []
-    for human, ai in history:
-        history_langchain_format.append(HumanMessage(content=human))
-        history_langchain_format.append(AIMessage(content=ai))
+def predict(message, historystr, historychn):
 
-    ai_message = rag_chain.invoke({'input': message, 'chat_history': history_langchain_format})
+    ai_message = rag_chain.invoke({'input': message, 'chat_history': historychn})
     print(ai_message)
 
     source_docs = ai_message['context']
     sources = "\n".join([doc.page_content for doc in source_docs])
     response_text = f"Answer: {ai_message['answer']}\n\nSources:\n{sources}"
-    history.append(
+    historystr.append(
         (message, response_text)
     )
+    historychn.extend(
+        [
+            HumanMessage(content=message),
+            AIMessage(content=ai_message['answer'])
+        ]
+    )
 
-    return [history, history]
+    return [historystr, historystr, historychn]
 
 # Create the Gradio interface with streaming
 def chat_interface_streaming():
     with gr.Blocks() as demo:
         chat = gr.Chatbot()
-        state = gr.State([])
+        msgs_str = gr.State([])
+        msgs_chn = gr.State([])
         
-        def respond(message, state):
-            state, new_state = predict(message, state)
-            return state, new_state
+        def respond(message, msgs_str, msgs_chn):
+            msgs_str, new_state, msgs_chn = predict(message, msgs_str, msgs_chn)
+            return msgs_str, new_state, msgs_chn
         
         with gr.Row():
             txt = gr.Textbox(show_label=False, placeholder="Enter text and press enter")
         
-        txt.submit(respond, [txt, state], [chat, state], queue=True)
+        txt.submit(respond, [txt, msgs_str, msgs_chn], [chat, msgs_str, msgs_chn], queue=True)
     
     demo.launch(share=True)
 
