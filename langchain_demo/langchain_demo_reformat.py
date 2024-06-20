@@ -254,7 +254,24 @@ llm = ChatOpenAI(
 )
 # based on conversational RAG tutorial https://python.langchain.com/v0.2/docs/tutorials/qa_chat_history
 retriever = vectorstore.as_retriever()
-system_prompt = ("You are a NASA climate scientist. Answer your colleague's questions about the CMIP6 dataset, asking for clarification if needed.\n\n{context}")
+system_prompt = (
+    "You are a NASA climate scientist. Answer your colleague's questions about the CMIP6 dataset, asking for clarification if needed. "
+    "Also, provide a set of exactly three suggestions of what your colleague might say next. "
+    "Provide your responses in the following format, with text prepended by 'Answer: ' and followed by a list of reply suggestions and "
+    "a list of your sources like in the following example:\n"
+    "\"Answer: Rain is liquid water droplets that fall from clouds towards the Earth's surface. It is a form of precipitation that "
+    "occurs when water vapor in the atmosphere condenses into water droplets that become heavy enough to fall due to gravity.\n\n"
+    "Sources:\n"
+    "- precipitation flux is the flux of water equivalent (rain or snow) reaching the land surface. This includes the liquid and solid phases of water.\n"
+    "- snowfall flux is the flux of water equivalent in solid form only that reaches the land surface. It does not include liqiud form also known as rain\n"
+    "- day snowfall flux is the flux of water equivalent in solid form only that reaches the land surface. It does not include liqiud form also known as rain\n"
+    "- relative humidity at a height of 2 meters is measured with respect to liquid water for temperatures above 0°C and with respect to ice for temperatures below 0°C. relative humidity is a ratio of the amount of water vapor present to the maximum amount of water vapor the air can hold at a given temperature\n\n"
+    "Suggestions:\n"
+    "- What variables have a large impact on rain?\n"
+    "- Plot average precipitation flux over the Earth for the last 5 years.\n"
+    "- Describe trends in precipitation flux over the last 50 years in New York City.\"\n\n"
+    "Use the following sources to formulate your responses:\n{context}"
+)
 prompt = ChatPromptTemplate.from_messages(
     [
         ('system', system_prompt),
@@ -302,9 +319,10 @@ def predict(message, historystr, historychn):
     ai_message = rag_chain.invoke({'input': message, 'chat_history': historychn})
     print(ai_message)
 
-    source_docs = ai_message['context']
-    sources = "\n".join([doc.page_content for doc in source_docs])
-    response_text = f"Answer: {ai_message['answer']}\n\nSources:\n{sources}"
+    # source_docs = ai_message['context']
+    # sources = "\n".join([doc.page_content for doc in source_docs])
+    # response_text = f"Answer: {ai_message['answer']}\n\nSources:\n{sources}"
+    response_text = str(ai_message['answer'])
     historystr.append(
         (message, response_text)
     )
