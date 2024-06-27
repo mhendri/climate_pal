@@ -248,12 +248,32 @@ metadata_field_info = [
     ),
 ]
 
-document_content_description = "climate diagnostic variables"
 llm = ChatOpenAI(
     temperature=0, 
 )
 # based on conversational RAG tutorial https://python.langchain.com/v0.2/docs/tutorials/qa_chat_history
 retriever = vectorstore.as_retriever()
+
+contextualize_q_system_prompt = (
+    "Given a chat history and the latest user question "
+    "which might reference context in the chat history, "
+    "formulate a standalone question which can be understood "
+    "without the chat history. Do NOT answer the question, "
+    "just reformulate it if needed and otherwise return it as is."
+    "Be as concise as possible, using only a few key words."
+)
+contextualize_q_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+# this processes chat history on call into standalone query:
+history_aware_retriever = create_history_aware_retriever( 
+    llm, retriever, contextualize_q_prompt
+)
+
 system_prompt = (
     "You are a NASA climate scientist. Answer your colleague's questions about the CMIP6 dataset, asking for clarification if needed. "
     "Also, provide a set of exactly three suggestions of what your colleague might say next. "
@@ -278,30 +298,6 @@ prompt = ChatPromptTemplate.from_messages(
         ('human', '{input}')
     ]
 )
-doc_chain = create_stuff_documents_chain(llm, prompt) #gives prompt to LLM
-qa_chain = create_retrieval_chain(retriever, doc_chain) #gives documents to prompt
-
-contextualize_q_system_prompt = (
-    "Given a chat history and the latest user question "
-    "which might reference context in the chat history, "
-    "formulate a standalone question which can be understood "
-    "without the chat history. Do NOT answer the question, "
-    "just reformulate it if needed and otherwise return it as is."
-    "Be as concise as possible, using only a few key words."
-)
-
-contextualize_q_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ]
-)
-# this processes chat history on call into standalone query:
-history_aware_retriever = create_history_aware_retriever( 
-    llm, retriever, contextualize_q_prompt
-)
-
 qa_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
@@ -319,9 +315,6 @@ def predict(message, historystr, historychn):
     ai_message = rag_chain.invoke({'input': message, 'chat_history': historychn})
     print(ai_message)
 
-    # source_docs = ai_message['context']
-    # sources = "\n".join([doc.page_content for doc in source_docs])
-    # response_text = f"Answer: {ai_message['answer']}\n\nSources:\n{sources}"
     response_text = str(ai_message['answer'])
     historystr.append(
         (message, response_text)
