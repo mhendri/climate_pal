@@ -98,6 +98,15 @@ def get_rag_system_prompt(df_ans=None):
         """
     return rag_system_prompt
 
+rag_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", "{prompt}"),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ]
+)
+
+chain_reply = rag_prompt | model | StrOutputParser()
 
 # standalone = chain_standalone.invoke(conversation)
 # out = agent.invoke(standalone)
@@ -107,28 +116,19 @@ def get_rag_system_prompt(df_ans=None):
 def predict(message, historystr, historychn):
     
     conversation = {'input': message, 'chat_history':historychn}
-    standalone = chain_standalone.invoke(conversation)
+    standalone = chain_standalone.invoke(conversation) + '?'
+    print('got standalone', standalone)
     out = agent.invoke(standalone)
     
     try:
         df_ans = out['intermediate_steps'][0][1]
-        rag_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", get_rag_system_prompt(df_ans)),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
     except:
-        rag_prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", get_rag_system_prompt()),
-                MessagesPlaceholder("chat_history"),
-                ("human", "{input}"),
-            ]
-        )
-    chain_reply = rag_prompt | model | StrOutputParser()
-    ai_message = chain_reply.invoke(conversation)
+        df_ans = None
+    print('got pd response', df_ans)
+        
+    print('about to prompt with', dict(conversation, **{'prompt': get_rag_system_prompt(df_ans)}))
+    ai_message = chain_reply.invoke(dict(conversation, **{'prompt': get_rag_system_prompt(df_ans)}))
+    print('got ai message')
 
     print(ai_message)
     historystr.append(
