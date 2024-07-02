@@ -1,7 +1,8 @@
 import os
 
+# How do I hide this from git commits?
 def init():
-    os.environ["OPENAI_API_KEY"] = '' # Put your key here!
+    os.environ["OPENAI_API_KEY"] = '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' # Put your key here!
 
 # import dotenv
 
