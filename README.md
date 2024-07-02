@@ -1,13 +1,24 @@
 # climate_pal
 Climate PAL - Climate Analysis and Projection Language Model
 
-## Langflow Demo
+## Setup
+
+Place the following contents into `langchain_demo/key.py`:
+
+```python
+import os
+
+def init():
+    os.environ["OPENAI_API_KEY"] = '' # Put your key here!
+```
+
+### Langflow environment
 1. ```python -m pip install langflow -U```
 2. ```python -m langflow run```
 3. import the file ```Climate Prediction Updated.json``` via the Langflow GUI
 
 
-## Langchain Demo
+### Langchain Demo
 
 ``` conda create -n langchain_env python=3.11.7```  
 ```conda install openai```  
@@ -15,7 +26,7 @@ Climate PAL - Climate Analysis and Projection Language Model
 ```conda install langchain -c conda-forge```  
 ```pip install langchain-openai langchain-community lark```
 
-## Files
+## Important files
 
 ```langchain_demo_reformat.py``` declates the Langchain Documents right in the code, as opposed to reading them in from JSON files. I wanted to experiment with making ```page_content``` be the comment description and so far this seems to be a better approach. 
 
