@@ -114,23 +114,17 @@ chain_reply = rag_prompt | model | StrOutputParser()
 # chain_reply.invoke(conversation)
 
 def predict(message, historystr, historychn):
-    
     conversation = {'input': message, 'chat_history':historychn}
-    standalone = chain_standalone.invoke(conversation) + '?'
-    print('got standalone', standalone)
+    standalone = chain_standalone.invoke(conversation) + '?' # sometimes an error if query isn't question-like enough
     out = agent.invoke(standalone)
     
     try:
         df_ans = out['intermediate_steps'][0][1]
     except:
         df_ans = None
-    print('got pd response', df_ans)
         
-    print('about to prompt with', dict(conversation, **{'prompt': get_rag_system_prompt(df_ans)}))
     ai_message = chain_reply.invoke(dict(conversation, **{'prompt': get_rag_system_prompt(df_ans)}))
-    print('got ai message')
 
-    print(ai_message)
     historystr.append(
         (message, ai_message)
     )
