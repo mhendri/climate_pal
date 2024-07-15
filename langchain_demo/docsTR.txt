@@ -1,0 +1,4 @@
+Amon: monthly resolution, for atmospheric variables
+3hr: three (3) hour resolution
+day: daily resolution, measured every day
+AERmon: monthly resolution, for aerosol variables
