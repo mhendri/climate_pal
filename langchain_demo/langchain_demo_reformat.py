@@ -221,6 +221,7 @@ vectorstore = Chroma.from_documents(
 
 
 metadata_field_info = [
+    # why is frequency included in the metadata field info?
     AttributeInfo(
         name="frequency",
         description="The frequency of the data",
@@ -265,7 +266,7 @@ contextualize_q_system_prompt = (
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", contextualize_q_system_prompt),
-        MessagesPlaceholder("chat_history"),
+        MessagesPlaceholder("chat_history"), # This assumes that the variable is a list of messages
         ("human", "{input}"),
     ]
 )

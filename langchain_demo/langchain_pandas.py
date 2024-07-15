@@ -194,7 +194,7 @@ def predict(message, historystr, historychn):
 # Create the Gradio interface with streaming
 def chat_interface_streaming():
     with gr.Blocks() as demo:
-        chat = gr.Chatbot()
+        chat = gr.Chatbot(height=720)  # Increase the height to take the full page
         msgs_str = gr.State([])
         msgs_chn = gr.State([])
         
@@ -205,13 +205,17 @@ def chat_interface_streaming():
         with gr.Row():
             txt = gr.Textbox(show_label=False, placeholder="Enter text and press enter")
         
-        txt.submit(respond, [txt, msgs_str, msgs_chn], [chat, msgs_str, msgs_chn], queue=True)
+        def submit_and_clear(message, msgs_str, msgs_chn):
+            msgs_str, new_state, msgs_chn = respond(message, msgs_str, msgs_chn)
+            return "", msgs_str, new_state, msgs_chn  # Clear the text box after submit
+        
+        txt.submit(submit_and_clear, [txt, msgs_str, msgs_chn], [txt, chat, msgs_str, msgs_chn], queue=True)
     
-    demo.launch(share=True)
+    demo.launch(share=False)
 
-# Launch the interface
-# this breaks on NASA machines
 chat_interface_streaming()
+
+
 
 # Alternatively, invoke retriever with one off query
 # print(retriever.invoke("What's one variable about snow with frequency mon"))

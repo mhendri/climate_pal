@@ -236,4 +236,4 @@ dependencies:
     - websockets==11.0.3
     - wrapt==1.16.0
     - zipp==3.19.2
-prefix: /Users/snc/opt/anaconda3/envs/giss
+prefix: /Users/snc/opt/anaconda3/envs/giss # Caution: This path is specific to Sonia's machine
