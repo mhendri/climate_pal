@@ -20,40 +20,87 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain.agents.agent_types import AgentType
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_experimental.tools import PythonAstREPLTool
+from langchain_core.output_parsers.openai_tools import JsonOutputKeyToolsParser
+
 if not os.environ.get("OPENAI_API_KEY"):
     import key
     key.init()
     assert os.environ.get('OPENAI_API_KEY')
+    
+############# Set Up DataFrame ############
 
-path = './paths.txt'
-dicts = {}
-with open(path, 'r') as file:
-    for l in file.readlines():
-        if '/v20' in l and '.html' in l:
-            url = l[:-1] #remove newline char
-            lsplit = url.split('/')
-            url_clean = '/'.join(lsplit[:-1]) # so they go up to and including the version directory
-            dicts[url_clean] = {'activity_id':lsplit[3],
-                            'experiment_id':lsplit[6],
-                            'temporal_resolution':lsplit[8],
-                            'variable':lsplit[9]}
-df = pd.DataFrame.from_dict(dicts, orient='index')
+path = './model_experiment_fields_ScenarioMIP_CMIP_filename_dates.csv' # path to CMIP6 datasets info
+path_vars = '../../cmip6-cmor-tables/Tables' # path to directory of jsons describing CMIP6 variables
 
-docsVAR= {
-    'ta': 'air temperature. air temperature is the temperature in the atmosphere. It has units of Kelvin (K). Temperature measured in kelvin can be converted to degrees Celsius (°C) by subtracting 273.15. This parameter is available on multiple levels through the atmosphere',
-    'tas': 'air temperature near surface. air temperature near surface is the temperature of air at 2 meters above the surface of land, sea or inland waters',
-    'pr': 'precipitation flux. precipitation flux is the flux of water equivalent (rain or snow) reaching the land surface. This includes the liquid and solid phases of water'
+df = pd.read_csv(path)
+df['collection'] = 'giss_cmip6'
+df = df[['collection', 'MIP', 'model', 'experiment', 'variant', 'tableID', 'variable', 'grid', 'version', 'start_YM', 'end_YM', 'filename']]
+df.columns = ['collection', 'MIP', 'model', 'experiment', 'variant', 'temporal resolution', 'variable', 'grid', 'version', 'start year-month', 'end year-month', 'filename']
+df = df.astype(str)
+
+def url(x): # add column with URL
+    cols = '/'.join(x)
+    return 'portal.nccs.nasa.gov/datashare/' + cols
+df['URL'] = df.apply(lambda x: url(x), axis=1)
+
+df['start year-month'] = df['start year-month'].apply(lambda x: x[:4]+'-'+x[4:])
+df['end year-month'] = df['end year-month'].apply(lambda x: x[:4]+'-'+x[4:])
+
+# remove version duplicates (keep just newest)
+df = df.sort_values(df.columns.to_list(), ascending=True).drop_duplicates(
+    subset=set(df.columns.to_list())-set(['version', 'filename', 'URL']),
+    ignore_index=True, keep='last')
+
+defs_temporal = {
+    'AERmon': 'aerosols monthly (AERmon)',
+    'Amon': 'atmospheric monthly (Amon)',
+    'CFmon': 'cloud fraction monthly (CFmon)',
+    'Emon': 'radiation monthly (Emon)',
+    'EmonZ': 'EmonZ (EmonZ)',
+    'LImon': 'land ice monthly (LImon)',
+    'Lmon': 'land monthly (Lmon)',
+    'Omon': 'ocean monthly (Omon)',
+    'SImon': 'sea ice monthly (SImon)',
+    '6hrLev': '6-hourly data on model levels (6hrLev)',
+    '6hrPlev': '6-hourly data on pressure levels (6hrPlev)',
+    '6hrPlevPt': '6-hourly data on pressure levels at point locations (6hrPlevPt)',
+    'Eday': 'radiation daily (Eday)',
+    '3hr': 'three (3) hour (3hr)',
+    'CF3hr': 'CF three (3) hour (CF3hr)',
+    'CFday': 'cloud fraction daily (CFday)',
+    'E3hrPt': '3-hourly data at point locations (E3hrPt)',
+    'day': 'daily (day)',
+    'AERday': 'aerosols daily (AERday)',
+    'SIday': 'sea ice daily (SIday)',
+    'AERhr': 'aerosols hourly (AERhr)',
 }
-docsTR = {
-    'Amon': 'monthly resolution, for atmospheric variables',
-    '3hr': 'three (3) hour resolution',
-    'day': 'daily resolution, measured every day',
-    'AERmon': 'monthly resolution, for aerosol variables',
-}
-df['def_variable']             = df['variable'].apply(lambda x: docsVAR.get(x, 'UNK'))
-df['def_temporal_resolution'] = df['temporal_resolution'].apply(lambda x: docsTR.get(x, 'UNK'))
 
-dfsub = df[(df['def_temporal_resolution']!='UNK') & (df['def_variable']!='UNK')]
+# read DataFrames from the var jsons, cat them all together
+jdfs = []
+for fname in os.listdir(path_vars):
+    with open(os.path.join(path_vars, fname)) as j:
+        d = json.load(j)
+    
+    try: 
+        jdf = pd.DataFrame.from_dict(d['variable_entry'], orient='index')
+    except:
+        print('skipping', fname, 'due to formatting issue')
+        continue    
+    
+    jdf['temporal resolution'] = fname[len('CMIP6_'):-len('.json')]
+    jdfs.append(jdf)
+    
+varsdf = pd.concat(jdfs)
+
+varsdf.rename(columns={'out_name': 'variable'}, inplace=True)
+varsdf = varsdf.drop_duplicates(subset=['variable', 'temporal resolution'])
+
+dfm = df.merge(varsdf, how='left')
+dfm = dfm.drop_duplicates(subset=set(dfm.columns.to_list())-set(['dimensions']))
+dfmsub = dfm.drop(['temporal resolution', 'grid', 'version', 'type', 'positive', 'valid_min', 'valid_max', 
+        'ok_min_mean_abs', 'ok_max_mean_abs', 'flag_values', 'flag_meanings'], axis=1)
 
 
 contextualize_q_system_prompt = (
@@ -69,17 +116,23 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
         ("human", "{input}"),
     ]
 )
-model = ChatOpenAI(model="gpt-3.5-turbo-0125", temperature=0)
+model = ChatOpenAI(model="gpt-3.5-turbo-0613", temperature=0)
 chain_standalone = contextualize_q_prompt | model | StrOutputParser()
 
-agent = create_pandas_dataframe_agent(
-    ChatOpenAI(temperature=0, model="gpt-3.5-turbo-0613"),
-    dfsub,
-    verbose=True,
-    agent_type=AgentType.OPENAI_FUNCTIONS,
-    allow_dangerous_code=True,
-    return_intermediate_steps=True
-)
+tool = PythonAstREPLTool(locals={"df": dfmsub})
+llm_with_tools = model.bind_tools([tool], tool_choice=tool.name)
+parser = JsonOutputKeyToolsParser(key_name=tool.name, first_tool_only=True)
+
+system = f"""
+You are a climate scientist with a pandas dataframe `df` that lists and describes all datasets 
+within CMIP6. Here is the output of `df.head().to_markdown()`: \
+{dfmsub.head().to_markdown()} \
+Given a colleague's query, write and execute the Python code to find relevant CMIP6 datasets. \
+Return ONLY the valid Python code and nothing else. Don't assume you have access to any libraries 
+other than built-in Python ones, pandas, and scipy.
+"""
+prompt = ChatPromptTemplate.from_messages([("system", system), ("human", "{question}")])
+pd_chain = prompt | llm_with_tools | parser | tool
 
 
 def get_rag_system_prompt(df_ans=None):
@@ -116,10 +169,11 @@ chain_reply = rag_prompt | model | StrOutputParser()
 def predict(message, historystr, historychn):
     conversation = {'input': message, 'chat_history':historychn}
     standalone = chain_standalone.invoke(conversation) + '?' # sometimes an error if query isn't question-like enough
-    out = agent.invoke(standalone)
+    df_ans = pd_chain.invoke(standalone)
     
     try:
-        df_ans = out['intermediate_steps'][0][1]
+        if df_ans.shape[0] > 10:
+            df_ans = df_ans.iloc[:10, :]
     except:
         df_ans = None
         
