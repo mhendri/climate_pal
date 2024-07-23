@@ -46,7 +46,6 @@ def create_message(thread, client, text_body=''):
   return message
 
 
-
 def download_file(url):
     # Send a HTTP request to the URL
     response = requests.get(url, stream=True)
@@ -85,7 +84,7 @@ def print_user(text):
         )
 
 
-def print_bot(text):
+def print_bot(text, image_path=None):
     avatar_url = 'https://avataaars.io/?avatarStyle=Transparent&topType=WinterHat1&accessoriesType=Blank&hatColor=Red&facialHairType=Blank&clotheType=Hoodie&clotheColor=Gray01&eyeType=Happy&eyebrowType=Default&mouthType=Smile&skinColor=Light'
     message_alignment = "flex-start"
     message_bg_color = "#EEEEEE"
@@ -101,7 +100,11 @@ def print_bot(text):
             """,
         unsafe_allow_html=True,
     )
-
+    
+    if image_path:
+            st.image(image_path, use_column_width=True)
+    
+    
 def main():
     st.set_page_config(page_title="Climate Pal", initial_sidebar_state='auto', menu_items=None)
     st.title("Climate Pal 🌎🌪️❄️🌊")
@@ -136,26 +139,30 @@ def main():
     # create message
     
 
-    INITIAL_HISTORY= [
-        {
-            "role": "assistant",
-            "content": "Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?!",
-        },
-    ]
+    # INITIAL_HISTORY= [
+    #     {
+    #         "role": "assistant",
+    #         "content": "Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?!",
+    #     },
+    # ]
+    
+    print_bot("Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?! Please tell me what you would like to do.")
 
-    if "history" not in st.session_state.keys():
-        st.session_state["history"] = INITIAL_HISTORY
+    # if "history" not in st.session_state.keys():
+    #     st.session_state["history"] = INITIAL_HISTORY
   
-    for note in st.session_state["history"]:
-        if note["role"] == "user":
-            print_user(note["content"])
-        else:
-            print_bot(note["content"])
+    # for note in st.session_state["history"]:
+    #     if note["role"] == "user":
+    #         print_user(note["content"])
+    #     else:
+    #         print_bot(note["content"])
 
     if input := st.chat_input(placeholder="Type here..."):
-        st.session_state["history"].append({"role": "user", "content": input})
-        print_user(input) 
+        # st.session_state["history"].append({"role": "user", "content": input})
+        # print_user(input) 
         
+        # create message
+        message = create_message(st.session_state["thread"], st.session_state["client"], input)
         
         run = st.session_state["client"].beta.threads.runs.create(
             thread_id=st.session_state["thread"].id,
@@ -192,10 +199,6 @@ def main():
                 print(message.role + ": " + content_block.text.value)
                 
             elif hasattr(content_block, 'image_file'):
-                # print(content_block.image_file)
-                print(message.role + ": [Non-text content]")
-                # print(content_block)
-                # print(content_block.image_file.file_id)
                 
                 api_response = st.session_state['client'].files.with_raw_response.retrieve_content(content_block.image_file.file_id)
 
@@ -204,12 +207,8 @@ def main():
                     f.write(content)
                 
                 image_path = f"assistant_images/{content_block.image_file.file_id}.png"
-
-                img = mpimg.imread(image_path)
-                plt.imshow(img)
-                plt.show()
-                print('File downloaded successfully.')
-
+                
+                print_bot("[Non-text content]", image_path)
 
 
 
