@@ -90,19 +90,22 @@ def print_bot(text, image_path=None):
     message_bg_color = "#EEEEEE"
     avatar_class = "bot-avatar"
 
-    st.write(
-        f"""
-            <div style="display: flex; align-items: center; margin-bottom: 10px; justify-content: {message_alignment};">
-                <img src="{avatar_url}" class="{avatar_class}" alt="avatar" style="width: 50px; height: 50px;" />
-                <div style="background: {message_bg_color}; color: black; border-radius: 20px; padding: 10px; margin-right: 5px; max-width: 75%; font-size: 14px;">
-                    {text} \n </div>
-            </div>
-            """,
-        unsafe_allow_html=True,
-    )
-    
     if image_path:
-            st.image(image_path, use_column_width=True)
+        st.image(image_path, use_column_width=True)
+        
+    else:
+        st.write(
+            f"""
+                <div style="display: flex; align-items: center; margin-bottom: 10px; justify-content: {message_alignment};">
+                    <img src="{avatar_url}" class="{avatar_class}" alt="avatar" style="width: 50px; height: 50px;" />
+                    <div style="background: {message_bg_color}; color: black; border-radius: 20px; padding: 10px; margin-right: 5px; max-width: 75%; font-size: 14px;">
+                        {text} \n </div>
+                </div>
+                """,
+            unsafe_allow_html=True,
+        )
+    
+    
     
     
 def main():
@@ -123,7 +126,7 @@ def main():
         
     # create file
     if "file" not in st.session_state.keys():
-        file = create_file(st.session_state["client"])
+        file = create_file(st.session_state["client"], path="data/hus_Amon_GISS-E2-1-G_historical_r1i1p1f2_gn_200101-201412.nc")
         st.session_state["file"] = file
     
     # create assistant
@@ -136,30 +139,11 @@ def main():
         thread = create_thread(st.session_state["client"])
         st.session_state["thread"] = thread
     
-    # create message
-    
 
-    # INITIAL_HISTORY= [
-    #     {
-    #         "role": "assistant",
-    #         "content": "Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?!",
-    #     },
-    # ]
     
     print_bot("Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?! Please tell me what you would like to do.")
 
-    # if "history" not in st.session_state.keys():
-    #     st.session_state["history"] = INITIAL_HISTORY
-  
-    # for note in st.session_state["history"]:
-    #     if note["role"] == "user":
-    #         print_user(note["content"])
-    #     else:
-    #         print_bot(note["content"])
-
     if input := st.chat_input(placeholder="Type here..."):
-        # st.session_state["history"].append({"role": "user", "content": input})
-        # print_user(input) 
         
         # create message
         message = create_message(st.session_state["thread"], st.session_state["client"], input)
@@ -182,10 +166,7 @@ def main():
             time.sleep(5)
         
         messages = st.session_state['client'].beta.threads.messages.list(thread_id=st.session_state["thread"].id)
-        
-        # message = messages.data[-1]
-        
-        # content_block = messages.data[-1].content[0]
+
         
         for message in reversed(messages.data):
             content_block = message.content[0]
