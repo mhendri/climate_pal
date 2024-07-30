@@ -20,7 +20,7 @@ def create_file( client, path="pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-20
 def create_assistant(file, client):
     assistant = client.beta.assistants.create(
         name="Climate PAL Assistant",
-        instructions="You are a climate scientist that is an expert in analyzing and plotting data. When asked a climate science question, write and run code to answer the question. Use the xarray library to read .nc files. Download and use the cftime library to decode time variables",
+        instructions="You are a climate scientist that is an expert in analyzing and plotting data. When asked a climate science question, write and run code to answer the question. Make sure to only talk about the question and do not mention anything else such as difficulty decoding and missing modules in you python environment. Use the xarray library to read .nc files. Use the cftime library to decode time variables",
         tools=[{"type": "code_interpreter"}],
         model="gpt-4o",
         # I need to figure out what this does
@@ -72,12 +72,13 @@ def print_user(text):
     message_alignment = "flex-end"
     message_bg_color = "linear-gradient(135deg, #00B2FF 0%, #006AFF 100%)"
     avatar_class = "user-avatar"
+    #            <img src="{avatar_url}" class="{avatar_class}" alt="avatar" style="width: 50px; height: 50px;" />
+    
     st.write(
         f"""
             <div style="display: flex; align-items: center; margin-bottom: 10px; justify-content: {message_alignment};">
                 <div style="background: {message_bg_color}; color: white; border-radius: 20px; padding: 10px; margin-right: 5px; max-width: 75%; font-size: 14px;">
                     {text} \n </div>
-                <img src="{avatar_url}" class="{avatar_class}" alt="avatar" style="width: 50px; height: 50px;" />
             </div>
             """,
         unsafe_allow_html=True,
@@ -92,12 +93,13 @@ def print_bot(text, image_path=None):
 
     if image_path:
         st.image(image_path, use_column_width=True)
+         #           <img src="{avatar_url}" class="{avatar_class}" alt="avatar" style="width: 50px; height: 50px;" />
+        
         
     else:
         st.write(
             f"""
                 <div style="display: flex; align-items: center; margin-bottom: 10px; justify-content: {message_alignment};">
-                    <img src="{avatar_url}" class="{avatar_class}" alt="avatar" style="width: 50px; height: 50px;" />
                     <div style="background: {message_bg_color}; color: black; border-radius: 20px; padding: 10px; margin-right: 5px; max-width: 75%; font-size: 14px;">
                         {text} \n </div>
                 </div>
