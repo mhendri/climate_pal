@@ -20,6 +20,14 @@ def init():
 
 ### Langchain Demo
 
+Sonia's version:
+```python
+conda create --name giss2 python==3.11.4
+conda activate giss2
+conda install numpy pandas openai scikit-learn jupyter
+pip install langchain langchain_core langchain_openai langchain_experimental openpyxl
+```
+
 ``` conda create -n langchain_env python=3.11.7```<!-- I added this assuming you want to install the packages in the conda environment -->    
 ``` conda activate langchain_env```    
 ```conda install openai```  
