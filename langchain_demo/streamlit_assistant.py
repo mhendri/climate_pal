@@ -7,6 +7,7 @@ import time
 import requests
 import os
 import streamlit as st
+from testing_extraction import get_dataset_url
 
 
 def create_file( client, paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"]):
@@ -20,11 +21,6 @@ def create_file( client, paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-
     
     return files
         
-    # file = client.files.create(
-    #     file=open(path, "rb"),
-    #     purpose='assistants'
-    # )
-    # return file
 
 
 def create_assistant(files, client):
@@ -70,9 +66,9 @@ def download_file(url):
             # Write the contents of the response to the file
             for chunk in response.iter_content(chunk_size=8192):
                 file.write(chunk)
-        print(f"Download completed successfully. File saved as {local_filename}")
+        print_bot(f"Download completed successfully. File saved as {local_filename}")
     else:
-        print("Failed to download the file. Status code:", response.status_code)
+        print_bot("Failed to download the file. Status code:", response.status_code)
         
     return local_filename    
   
@@ -131,79 +127,153 @@ def main():
         key.init()
         assert os.environ.get('OPENAI_API_KEY')
         
-    with st.spinner('Setting up assistant...'):
-        # create client
-        if "client" not in st.session_state.keys():
-            client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-            st.session_state["client"] = client
-            
-        # create file
-        if "file" not in st.session_state.keys():
-            file = create_file(st.session_state["client"], paths=["data/hus_Amon_GISS-E2-1-G_historical_r1i1p1f2_gn_200101-201412.nc","pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"])
-            st.session_state["file"] = file
         
-        # create assistant
-        if "assistant" not in st.session_state.keys():
-            assistant = create_assistant(st.session_state["file"], st.session_state["client"])
-            st.session_state["assistant"] = assistant
-            
-        # create thread
-        if "thread" not in st.session_state.keys():
-            thread = create_thread(st.session_state["client"])
-            st.session_state["thread"] = thread
-        
+    # the first conversation is for url extraction
+    print_bot("Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?! Please tell me what you would like to do.")
+    
+    if 'url' not in st.session_state.keys():
+        if input := st.chat_input(placeholder="Type here for initial...", key="url_input"):
+            print_user(input)
+            with st.spinner('URL Extraction In Progress...'):
+                st.session_state['url'] = get_dataset_url(input)
+                file_temp = download_file(st.session_state['url'])
+                
+                client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                st.session_state["client"] = client
+                
+                print_bot(f"This is file {file_temp}")
+                file = create_file(st.session_state["client"], paths=["data/"+file_temp])
+                st.session_state["file"] = file
+                st.session_state['user_input'] = input
+                
+                assistant = create_assistant(st.session_state["file"], st.session_state["client"])
+                st.session_state["assistant"] = assistant
+                
+                thread = create_thread(st.session_state["client"])
+                st.session_state["thread"] = thread
+                
+            with st.spinner('In Progress...'):
+                # create message
+                message = create_message(st.session_state["thread"], st.session_state["client"], input)
+                
+                run = st.session_state["client"].beta.threads.runs.create(
+                    thread_id=st.session_state["thread"].id,
+                    assistant_id=st.session_state["assistant"].id,
+                )
+                
+                run = st.session_state['client'].beta.threads.runs.retrieve(thread_id=st.session_state['thread'].id, run_id=run.id)
+                print(run.status)
+                
+                while run.status not in ["completed", "failed"]:
+                    run = st.session_state['client'].beta.threads.runs.retrieve(
+                        thread_id = st.session_state['thread'].id,
+                        run_id = run.id
+                    )
+
+                    print(run.status)
+                    time.sleep(5)
+                
+                messages = st.session_state['client'].beta.threads.messages.list(thread_id=st.session_state["thread"].id)
+                
+            for message in reversed(messages.data):
+                content_block = message.content[0]
+                
+                if hasattr(content_block, 'text'):
+                    if message.role == "assistant":
+                        print_bot(content_block.text.value)
+                    else:
+                        print_user(content_block.text.value)
+                    
+                    print(message.role + ": " + content_block.text.value)
+                    
+                elif hasattr(content_block, 'image_file'):
+                    
+                    api_response = st.session_state['client'].files.with_raw_response.retrieve_content(content_block.image_file.file_id)
+
+                    content = api_response.content
+                    with open(f"assistant_images/{content_block.image_file.file_id}.png", 'wb') as f:
+                        f.write(content)
+                    
+                    image_path = f"assistant_images/{content_block.image_file.file_id}.png"
+                    
+                    print_bot("[Non-text content]", image_path)
 
     
-    print_bot("Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?! Please tell me what you would like to do.")
-
-    if input := st.chat_input(placeholder="Type here..."):
         
-        with st.spinner('In Progress...'):
-            # create message
-            message = create_message(st.session_state["thread"], st.session_state["client"], input)
+    if 'url' in st.session_state.keys():
+        with st.spinner('Setting up assistant...'):
+            # create client
+            if "client" not in st.session_state.keys():
+                client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                st.session_state["client"] = client
+                
+            # create file
+            if "file" not in st.session_state.keys():
+                file = create_file(st.session_state["client"], paths=["data/hus_Amon_GISS-E2-1-G_historical_r1i1p1f2_gn_200101-201412.nc","pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"])
+                st.session_state["file"] = file
             
-            run = st.session_state["client"].beta.threads.runs.create(
-                thread_id=st.session_state["thread"].id,
-                assistant_id=st.session_state["assistant"].id,
-            )
+            # create assistant
+            if "assistant" not in st.session_state.keys():
+                assistant = create_assistant(st.session_state["file"], st.session_state["client"])
+                st.session_state["assistant"] = assistant
+                
+            # create thread
+            if "thread" not in st.session_state.keys():
+                thread = create_thread(st.session_state["client"])
+                st.session_state["thread"] = thread
             
-            run = st.session_state['client'].beta.threads.runs.retrieve(thread_id=st.session_state['thread'].id, run_id=run.id)
-            print(run.status)
+
+        
+
+        if input := st.chat_input(placeholder="Type here..."):
             
-            while run.status not in ["completed", "failed"]:
-                run = st.session_state['client'].beta.threads.runs.retrieve(
-                    thread_id = st.session_state['thread'].id,
-                    run_id = run.id
+            with st.spinner('In Progress...'):
+                # create message
+                message = create_message(st.session_state["thread"], st.session_state["client"], input)
+                
+                run = st.session_state["client"].beta.threads.runs.create(
+                    thread_id=st.session_state["thread"].id,
+                    assistant_id=st.session_state["assistant"].id,
                 )
-
+                
+                run = st.session_state['client'].beta.threads.runs.retrieve(thread_id=st.session_state['thread'].id, run_id=run.id)
                 print(run.status)
-                time.sleep(5)
-            
-            messages = st.session_state['client'].beta.threads.messages.list(thread_id=st.session_state["thread"].id)
+                
+                while run.status not in ["completed", "failed"]:
+                    run = st.session_state['client'].beta.threads.runs.retrieve(
+                        thread_id = st.session_state['thread'].id,
+                        run_id = run.id
+                    )
 
-        
-        for message in reversed(messages.data):
-            content_block = message.content[0]
-            
-            if hasattr(content_block, 'text'):
-                if message.role == "assistant":
-                    print_bot(content_block.text.value)
-                else:
-                    print_user(content_block.text.value)
+                    print(run.status)
+                    time.sleep(5)
                 
-                print(message.role + ": " + content_block.text.value)
-                
-            elif hasattr(content_block, 'image_file'):
-                
-                api_response = st.session_state['client'].files.with_raw_response.retrieve_content(content_block.image_file.file_id)
+                messages = st.session_state['client'].beta.threads.messages.list(thread_id=st.session_state["thread"].id)
 
-                content = api_response.content
-                with open(f"assistant_images/{content_block.image_file.file_id}.png", 'wb') as f:
-                    f.write(content)
+            
+            print_user(st.session_state['user_input'])
+            for message in reversed(messages.data):
+                content_block = message.content[0]
                 
-                image_path = f"assistant_images/{content_block.image_file.file_id}.png"
-                
-                print_bot("[Non-text content]", image_path)
+                if hasattr(content_block, 'text'):
+                    if message.role == "assistant":
+                        print_bot(content_block.text.value)
+                    else:
+                        print_user(content_block.text.value)
+                    
+                    print(message.role + ": " + content_block.text.value)
+                    
+                elif hasattr(content_block, 'image_file'):
+                    
+                    api_response = st.session_state['client'].files.with_raw_response.retrieve_content(content_block.image_file.file_id)
+
+                    content = api_response.content
+                    with open(f"assistant_images/{content_block.image_file.file_id}.png", 'wb') as f:
+                        f.write(content)
+                    
+                    image_path = f"assistant_images/{content_block.image_file.file_id}.png"
+                    
+                    print_bot("[Non-text content]", image_path)
 
 
 
