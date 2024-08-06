@@ -9,24 +9,34 @@ import os
 import streamlit as st
 
 
-def create_file( client, path="pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"):
-    file = client.files.create(
-        file=open(path, "rb"),
-        purpose='assistants'
-    )
-    return file
+def create_file( client, paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"]):
+    files = []
+    for path in paths:
+        file = client.files.create(
+            file=open(path, "rb"),
+            purpose='assistants'
+        )
+        files.append(file)
+    
+    return files
+        
+    # file = client.files.create(
+    #     file=open(path, "rb"),
+    #     purpose='assistants'
+    # )
+    # return file
 
 
-def create_assistant(file, client):
+def create_assistant(files, client):
     assistant = client.beta.assistants.create(
         name="Climate PAL Assistant",
-        instructions="You are a climate scientist that is an expert in analyzing and plotting data. When asked a climate science question, write and run code to answer the question. Make sure to only talk about the question and do not mention anything else such as difficulty decoding and missing modules in you python environment. Use the xarray library to read .nc files. Use the cftime library to decode time variables",
+        instructions="You are a climate scientist that is an expert in analyzing and plotting data. When asked a climate science question, write and run code to answer the question. Make sure to only talk about the question and do not mention anything else such as difficulty decoding and missing modules in you python environment. Use the xarray library to read .nc files.", #Use the cftime library to decode time variables",
         tools=[{"type": "code_interpreter"}],
         model="gpt-4o",
         # I need to figure out what this does
         tool_resources={
         "code_interpreter": {
-        "file_ids": [file.id]
+        "file_ids": [file.id for file in files] # modified this line
         }
         }
     )
@@ -121,53 +131,55 @@ def main():
         key.init()
         assert os.environ.get('OPENAI_API_KEY')
         
-    # create client
-    if "client" not in st.session_state.keys():
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        st.session_state["client"] = client
+    with st.spinner('Setting up assistant...'):
+        # create client
+        if "client" not in st.session_state.keys():
+            client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            st.session_state["client"] = client
+            
+        # create file
+        if "file" not in st.session_state.keys():
+            file = create_file(st.session_state["client"], paths=["data/hus_Amon_GISS-E2-1-G_historical_r1i1p1f2_gn_200101-201412.nc","pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"])
+            st.session_state["file"] = file
         
-    # create file
-    if "file" not in st.session_state.keys():
-        file = create_file(st.session_state["client"], path="data/hus_Amon_GISS-E2-1-G_historical_r1i1p1f2_gn_200101-201412.nc")
-        st.session_state["file"] = file
-    
-    # create assistant
-    if "assistant" not in st.session_state.keys():
-        assistant = create_assistant(st.session_state["file"], st.session_state["client"])
-        st.session_state["assistant"] = assistant
+        # create assistant
+        if "assistant" not in st.session_state.keys():
+            assistant = create_assistant(st.session_state["file"], st.session_state["client"])
+            st.session_state["assistant"] = assistant
+            
+        # create thread
+        if "thread" not in st.session_state.keys():
+            thread = create_thread(st.session_state["client"])
+            st.session_state["thread"] = thread
         
-    # create thread
-    if "thread" not in st.session_state.keys():
-        thread = create_thread(st.session_state["client"])
-        st.session_state["thread"] = thread
-    
 
     
     print_bot("Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?! Please tell me what you would like to do.")
 
     if input := st.chat_input(placeholder="Type here..."):
         
-        # create message
-        message = create_message(st.session_state["thread"], st.session_state["client"], input)
-        
-        run = st.session_state["client"].beta.threads.runs.create(
-            thread_id=st.session_state["thread"].id,
-            assistant_id=st.session_state["assistant"].id,
-        )
-        
-        run = st.session_state['client'].beta.threads.runs.retrieve(thread_id=st.session_state['thread'].id, run_id=run.id)
-        print(run.status)
-        
-        while run.status not in ["completed", "failed"]:
-            run = st.session_state['client'].beta.threads.runs.retrieve(
-                thread_id = st.session_state['thread'].id,
-                run_id = run.id
+        with st.spinner('In Progress...'):
+            # create message
+            message = create_message(st.session_state["thread"], st.session_state["client"], input)
+            
+            run = st.session_state["client"].beta.threads.runs.create(
+                thread_id=st.session_state["thread"].id,
+                assistant_id=st.session_state["assistant"].id,
             )
-
+            
+            run = st.session_state['client'].beta.threads.runs.retrieve(thread_id=st.session_state['thread'].id, run_id=run.id)
             print(run.status)
-            time.sleep(5)
-        
-        messages = st.session_state['client'].beta.threads.messages.list(thread_id=st.session_state["thread"].id)
+            
+            while run.status not in ["completed", "failed"]:
+                run = st.session_state['client'].beta.threads.runs.retrieve(
+                    thread_id = st.session_state['thread'].id,
+                    run_id = run.id
+                )
+
+                print(run.status)
+                time.sleep(5)
+            
+            messages = st.session_state['client'].beta.threads.messages.list(thread_id=st.session_state["thread"].id)
 
         
         for message in reversed(messages.data):
