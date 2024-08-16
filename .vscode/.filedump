@@ -1,0 +1,6 @@
+
+		begin
+      f = addfile("/Users/brabiei/Desktop/NASA Internship/climate_pal/langchain_demo/data/tas_day_GISS-E2-1-G_ssp119_r1i1p1f2_gn_20150101-21001231.nc","r")
+      print(f)
+		end
+    
