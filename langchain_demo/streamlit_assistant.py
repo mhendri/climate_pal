@@ -174,7 +174,8 @@ def main():
             
         # create file
         if "file" not in st.session_state.keys():
-            file = create_file(st.session_state["client"], paths=[st.session_state['json_file']])
+            file = create_file(st.session_state["client"], paths=['path'+st.session_state['file_temp']])
+            # file = create_file(st.session_state["client"], paths=[st.session_state['json_file']])
             st.session_state["file"] = file
         
         # create assistant
