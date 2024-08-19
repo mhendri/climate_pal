@@ -162,6 +162,7 @@ def main():
         
         
     # the first conversation is for url extraction
+    # Small addition to see if it will push
     print_bot("Hey there, I'm Climate Pal, your personal data visualizer and analyzer, ready to explore some data?! Please tell me what you would like to do.")    
         
     # if 'url' in st.session_state.keys():
