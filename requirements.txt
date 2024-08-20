@@ -1,0 +1,11 @@
+pandas
+numpy
+langchain
+langchain-openai
+langchain-community
+langchain-core
+scikit-learn
+matplotlib
+requests
+streamlit
+xarray
