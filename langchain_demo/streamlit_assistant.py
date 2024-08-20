@@ -29,7 +29,7 @@ def create_file( client, paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-
 def create_assistant(files, client):
     assistant = client.beta.assistants.create(
         name="Climate PAL Assistant",
-        instructions="You are a climate scientist that is an expert in analyzing and plotting data. When asked a climate science question, write and run code to answer the question. Make sure to only talk about the question and do not mention anything else such as difficulty decoding and missing modules in you python environment. Use the xarray library to read .nc files.", #Use the cftime library to decode time variables",
+        instructions="You are a climate scientist that is an expert in analyzing and plotting data. When asked a climate science question, write and run code to answer the question. When provided a zip file, unzip the file. Use the xarray library to read .nc files.", #Use the cftime library to decode time variables",
         tools=[{"type": "code_interpreter"}],
         model="gpt-4o",
         # I need to figure out what this does
