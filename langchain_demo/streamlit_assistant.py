@@ -195,8 +195,8 @@ def main():
         if "file" not in st.session_state.keys():
             # file = create_file(st.session_state["client"], paths=['data/'+st.session_state['file_temp']])
             # file = create_file(st.session_state["client"], paths=[st.session_state['json_file']])
-            # file = create_file(st.session_state["client"], paths=[st.session_state['zip_file']])
-            file = create_file(st.session_state["client"], paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"])
+            file = create_file(st.session_state["client"], paths=[st.session_state['zip_file']])
+            # file = create_file(st.session_state["client"], paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"])
             st.session_state["file"] = file
         
         # create assistant
