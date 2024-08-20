@@ -11,6 +11,7 @@ from testing_extraction import get_dataset_url
 import xarray as xr
 import pandas as pd
 import json
+import zipfile
 
 def create_file( client, paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"]):
     files = []
@@ -152,13 +153,31 @@ def main():
                     # Load the NetCDF file
                     ds = xr.open_dataset("data/"+st.session_state['file_temp'], decode_times=False)
 
-                    # Convert the entire dataset to a dictionary
-                    data_dict = ds.to_dict()
+                    zip_file_name = "zip_file.zip"
+                    # Create a ZipFile object in write mode
+                    with zipfile.ZipFile(zip_file_name, 'w') as zipf:
+                        # Add the file to the zip
+                        zipf.write('data/'+st.session_state['file_temp'])
 
-                    # Export the dictionary to a JSON file
-                    st.session_state['json_file'] = 'output_file.json'
-                    with open(st.session_state['json_file'], 'w') as f:
-                        json.dump(data_dict, f, indent=4)
+                    print(f"{st.session_state['file_temp']} has been zipped into {zip_file_name}")
+                    st.session_state['zip_file'] = zip_file_name
+
+                    # # Convert the dataset to a pandas DataFrame
+                    # df = ds.to_dataframe()
+
+                    # # Save the DataFrame to a JSON file
+                    # df.to_json('output_file.json')
+                    
+                    # st.session_state['json_file'] = 'output_file.json'
+                
+                
+                    # # Convert the entire dataset to a dictionary
+                    # data_dict = ds.to_dict()
+
+                    # # Export the dictionary to a JSON file
+                    # st.session_state['json_file'] = 'output_file.json'
+                    # with open(st.session_state['json_file'], 'w') as f:
+                    #     json.dump(data_dict, f, indent=4)
         
         
     # the first conversation is for url extraction
@@ -174,8 +193,10 @@ def main():
             
         # create file
         if "file" not in st.session_state.keys():
-            file = create_file(st.session_state["client"], paths=['path'+st.session_state['file_temp']])
+            # file = create_file(st.session_state["client"], paths=['data/'+st.session_state['file_temp']])
             # file = create_file(st.session_state["client"], paths=[st.session_state['json_file']])
+            # file = create_file(st.session_state["client"], paths=[st.session_state['zip_file']])
+            file = create_file(st.session_state["client"], paths=["pr_Amon_GISS-E2-1-G_ssp245_r10i1p1f2_gn_201501-205012.nc"])
             st.session_state["file"] = file
         
         # create assistant
