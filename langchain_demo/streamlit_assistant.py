@@ -274,4 +274,3 @@ if __name__ == "__main__":
 # - The text box for dataset description doesn't expand as the user input increases
 # - User's input is not displayed until the assistant responds (This is not a quick fix and may require some restructuring)
 #############
-
